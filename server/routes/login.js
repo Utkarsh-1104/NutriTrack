@@ -17,10 +17,10 @@ router.post('/', async (req, res) => {
     try {
         const user = await User.findOne({ email });
         if (!user) {
-        return res.status(400).json({
-            status: 400,
-            message: 'User not found'
-        });
+            return res.json({
+                status: 400,
+                message: 'User not found'
+            });
         }
     
         bcrypt.compare(password, user.password, (err, result) => {

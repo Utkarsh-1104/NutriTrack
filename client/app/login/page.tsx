@@ -4,6 +4,7 @@ import type React from "react"
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import axios from "axios"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,16 +22,20 @@ export default function LoginPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    const response = await axios.post("http://localhost:4000/api/login", formData)
+    console.log(response.data)
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Login attempted:", formData)
+    if (response.data.status === 200) {
+      localStorage.setItem("token", response.data.token)
       setLoading(false)
-      router.push("/dashboard") // Redirect to dashboard after login
-    }, 1500)
+      router.push(`/dashboard?id=${response.data.user._id}&caloriegoal=${response.data.user.calorieGoal}`)
+    } else {
+      setLoading(false)
+      alert(response.data.message)
+    }
   }
 
   return (

@@ -2,75 +2,116 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
+import axios from "axios"
 
-// Mock user data - in a real app, this would come from an API/database
-const mockUserData = {
-  name: "John Doe",
-  dailyCalorieTarget: 2000,
-  currentWeight: 75, // kg
-  targetWeight: 70, // kg
-}
 
 // Mock initial food items - in a real app, this would come from an API/database
 const initialFoodItems = [
-  { id: 1, name: "Oatmeal with Banana", calories: 350, time: "08:30 AM" },
-  { id: 2, name: "Grilled Chicken Salad", calories: 420, time: "12:45 PM" },
+  { id: 1, name: "Oatmeal with Banana", calories: 350 },
+  { id: 2, name: "Grilled Chicken Salad", calories: 420 },
 ]
 
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [foodItems, setFoodItems] = useState(initialFoodItems)
-  const [newFood, setNewFood] = useState({ name: "", calories: "" })
+  const [foodItems, setFoodItems] = useState([])
+  const [newFood, setNewFood] = useState("")
   const [totalCalories, setTotalCalories] = useState(0)
+  
+  const searchParams = useSearchParams()
+  const userId = searchParams.get("id")
+  const dailyCalorieTarget = Number(searchParams.get("caloriegoal"))
 
-  // Calculate total calories whenever food items change
+
+  //fetch food log from server
   useEffect(() => {
-    const total = foodItems.reduce((sum, item) => sum + item.calories, 0)
-    setTotalCalories(total)
-
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [foodItems])
-
-  const handleInputChange = (e: any) => {
-    const { name, value } = e.target
-    setNewFood((prev) => ({
-      ...prev,
-      [name]: name === "calories" ? (value === "" ? "" : Number.parseInt(value, 10)) : value,
-    }))
-  }
-
-  const handleAddFood = (e: any) => {
-    e.preventDefault()
-
-    if (!newFood.name || !newFood.calories) return
-
-    const now = new Date()
-    const timeString = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-
-    const newItem = {
-      id: Date.now(),
-      name: newFood.name,
-      calories: newFood.calories,
-      time: timeString,
+    const fetchFoodLog = async () => {
+      try {
+        const res = await axios.get("http://localhost:4000/api/todaycal", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        })
+        setFoodItems(res.data.todayLog.foods)
+        setTotalCalories(res.data.todayLog.totalCalories)
+        console.log(res.data.todayLog.foods)
+      } catch (error) {
+        console.error("Error fetching food log:", error)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    setFoodItems((prev) => [...prev, newItem])
-    setNewFood({ name: "", calories: "" })
+    fetchFoodLog()
+  }, [])
+
+  // Calculate total calories whenever food items chang
+
+
+  const handleAddFood = async (e: any) => {
+    e.preventDefault()
+    setLoading(true)
+
+    if (!newFood) return
+
+    const appId = process.env.NEXT_PUBLIC_X_APP_ID;
+    const appKey = process.env.NEXT_PUBLIC_X_APP_KEY;
+  
+    try {
+      // Step 1: Get calorie info from Nutritionix
+      const nutritionRes = await axios.post(
+        "https://trackapi.nutritionix.com/v2/natural/nutrients",
+        { query: newFood },
+        {
+          headers: {
+            "x-app-id": appId,
+            "x-app-key": appKey,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+  
+      const foods = nutritionRes.data.foods;
+      console.log(foods[0].nf_calories)
+
+      for (let food of foods) {
+        const res = await axios.post(
+          "http://localhost:4000/api/add",
+          {
+            foodName: food.food_name,
+            calories: food.nf_calories
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "Content-Type": "application/json"
+            }
+          }
+        );
+
+        console.log(res.data)
+      }
+  
+      setNewFood("")
+
+    } catch (error) {
+      console.error("Error fetching nutrition data:", error);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false) 
+    window.location.reload()
   }
 
   const handleDeleteFood = (id: any) => {
-    setFoodItems((prev) => prev.filter((item) => item.id !== id))
+    setFoodItems((prev) => prev.filter((item) => item._id !== id))
   }
 
   // Calculate progress percentage
-  const progressPercentage = Math.min(Math.round((totalCalories / mockUserData.dailyCalorieTarget) * 100), 100)
-  const isExceeded = totalCalories > mockUserData.dailyCalorieTarget
+  const progressPercentage = Math.min(Math.round((totalCalories / dailyCalorieTarget) * 100), 100)
+  const isExceeded = totalCalories > dailyCalorieTarget
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-green-50 to-white">
@@ -105,20 +146,20 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="bg-green-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">Daily Target</p>
-                  <p className="text-2xl font-bold text-green-600">{mockUserData.dailyCalorieTarget} cal</p>
+                  <p className="text-2xl font-bold text-green-600">{dailyCalorieTarget} cal</p>
                 </div>
 
                 <div className="bg-green-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">Consumed</p>
-                  <p className="text-2xl font-bold text-green-600">{totalCalories} cal</p>
+                  <p className="text-2xl font-bold text-green-600">{totalCalories.toFixed(2)} cal</p>
                 </div>
 
                 <div className="bg-green-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">Remaining</p>
                   <p className={`text-2xl font-bold ${isExceeded ? "text-red-500" : "text-green-600"}`}>
                     {isExceeded
-                      ? "+" + (totalCalories - mockUserData.dailyCalorieTarget)
-                      : mockUserData.dailyCalorieTarget - totalCalories}{" "}
+                      ? "+" + (totalCalories - dailyCalorieTarget).toFixed(2)
+                      : (dailyCalorieTarget - totalCalories).toFixed(2)}{" "}
                     cal
                   </p>
                 </div>
@@ -138,7 +179,7 @@ export default function DashboardPage() {
                 </div>
                 {isExceeded && (
                   <p className="text-red-500 text-sm mt-1">
-                    You've exceeded your daily calorie target by {totalCalories - mockUserData.dailyCalorieTarget}{" "}
+                    You've exceeded your daily calorie target by {totalCalories - dailyCalorieTarget}{" "}
                     calories
                   </p>
                 )}
@@ -160,37 +201,20 @@ export default function DashboardPage() {
                       name="name"
                       type="text"
                       required
-                      value={newFood.name}
-                      onChange={handleInputChange}
+                      value={newFood}
+                      onChange={(e) => setNewFood(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., Grilled Chicken Salad"
                     />
                   </div>
-
-                  <div>
-                    <label htmlFor="calories" className="block text-sm font-medium text-gray-700 mb-1">
-                      Calories
-                    </label>
-                    <input
-                      id="calories"
-                      name="calories"
-                      type="number"
-                      required
-                      min="0"
-                      value={newFood.calories}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., 350"
-                    />
-                  </div>
+                  <button
+                    type="submit"
+                    className="ml-auto mt-auto w-full md:w-auto px-6 py-2 bg-green-500 hover:bg-green-700 cursor-pointer text-white font-medium rounded-lg transition duration-200"
+                  >
+                    Add Food
+                  </button>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full md:w-auto px-6 py-2 bg-green-500 hover:bg-green-700 cursor-pointer text-white font-medium rounded-lg transition duration-200"
-                >
-                  Add Food
-                </button>
               </form>
             </section>
 
@@ -205,16 +229,15 @@ export default function DashboardPage() {
                   {/* Mobile view - Card layout */}
                   <div className="md:hidden space-y-4">
                     {foodItems.map((item) => (
-                      <div key={item.id} className="bg-gray-50 p-4 rounded-lg">
+                      <div key={item._id} className="bg-gray-50 p-4 rounded-lg">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-medium text-gray-900">{item.name}</h3>
-                            <p className="text-sm text-gray-500">{item.time}</p>
+                            <h3 className="font-medium text-gray-900">{item.foodName}</h3>
                           </div>
                           <div className="flex flex-col items-end">
                             <span className="font-bold text-gray-900">{item.calories} cal</span>
                             <button
-                              onClick={() => handleDeleteFood(item.id)}
+                              onClick={() => handleDeleteFood(item._id)}
                               className="text-red-600 text-sm mt-2 hover:text-red-900"
                             >
                               Delete
@@ -226,7 +249,7 @@ export default function DashboardPage() {
                     <div className="bg-green-100 p-4 rounded-lg mt-4">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-gray-900">Total</span>
-                        <span className="font-bold text-gray-900">{totalCalories} cal</span>
+                        <span className="font-bold text-gray-900">{totalCalories.toFixed(2)} cal</span>
                       </div>
                     </div>
                   </div>
@@ -236,12 +259,6 @@ export default function DashboardPage() {
                     <table className="w-full min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Time
-                          </th>
                           <th
                             scope="col"
                             className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -264,15 +281,14 @@ export default function DashboardPage() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {foodItems.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.time}</td>
+                          <tr key={item._id}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {item.name}
+                              {item.foodName}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.calories} cal</td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <button
-                                onClick={() => handleDeleteFood(item.id)}
+                                onClick={() => handleDeleteFood(item._id)}
                                 className="text-red-600 cursor-pointer hover:text-red-900 hover:underline hover:underline-offset-2"
                               >
                                 Delete
@@ -287,7 +303,7 @@ export default function DashboardPage() {
                             Total
                           </td>
                           <td colSpan={2} className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                            {totalCalories} cal
+                            {totalCalories.toFixed(2)} cal
                           </td>
                         </tr>
                       </tfoot>

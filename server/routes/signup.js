@@ -10,64 +10,60 @@ import jwt from 'jsonwebtoken';
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  await db();
-
-  const { name, email, password, currentWeight, targetWeight } = req.body;
+  await db(); 
+  //const { name, email, password, currentWeight, targetWeight } = req.body;
+  console.log(req.body);
 
   let multiplier = 30; // maintain
-  if (currentWeight > targetWeight) {
+  if (req.body.currentWeight > req.body.targetWeight) {
     multiplier = 25;
   } else {
     multiplier = 35;
   }
   
-  const calorieGoal = multiplier * currentWeight;
+  const calorieGoal = multiplier * req.body.currentWeight;
   
   try {
-    const existingUser = await User.find({ email });
-    if (existingUser > 0) {
-      return res.status(400).json({
-        status: 400,
-        message: 'User already exists',
+    const existingUser = await User.findOne({
+      email: req.body.email
+    });
+
+    if (existingUser) {
+      return res.json({
+        status: 409,
+        message: 'User already exists'
       });
     }
 
-    bcrypt.hash(password, 10, async (err, hash) => {
-      if (err) {
-        return res.status(500).json({
-          status: 500,
-          message: 'Error hashing password',
-          error: err.message
-        });
-      }
-
-      const newUser = new User({
-        name,
-        email,
+    bcrypt.hash(req.body.password, 10, async (err, hash) => {
+      const newUser = await new User({
+        name: req.body.name,
+        email: req.body.email,
         password: hash,
-        currentWeight,
-        targetWeight,
-        calorieGoal
+        currentWeight: req.body.currentWeight,
+        targetWeight: req.body.targetWeight,
+        calorieGoal: calorieGoal,
       });
 
       await newUser.save();
+
+      const token = jwt.sign({ 
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        currentWeight: newUser.currentWeight,
+        targetWeight: newUser.targetWeight,
+        calorieGoal: newUser.calorieGoal
+      }, process.env.JWT_SECRET);
+  
+      res.json({
+        status: 200,
+        message: 'User created successfully',
+        user: newUser,
+        token
+      });
     })
 
-    const token = jwt.sign({ 
-      id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      currentWeight: newUser.currentWeight,
-      targetWeight: newUser.targetWeight,
-      calorieGoal: newUser.calorieGoal
-    }, process.env.JWT_SECRET);
-
-    res.json({
-      status: 201,
-      message: 'User created successfully',
-      user: newUser,
-      token
-    });
 
   } catch(error) {
     res.json({

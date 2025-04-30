@@ -38,9 +38,10 @@ export default function ProfilePage() {
   const handleLogout = () => {
     // Simulate logout process
     setLoading(true)
-    setTimeout(() => {
-      router.push("/")
-    }, 500)
+    localStorage.removeItem("token")
+    setLoading(false)
+    router.push("/")
+    //window.location.reload()
   }
 
   return (

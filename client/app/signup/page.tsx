@@ -4,36 +4,38 @@ import type React from "react"
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import axios from "axios"
 
 export default function SignupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    currentWeight: "",
-    targetWeight: "",
-  })
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [currentWeight, setCurrentWeight] = useState(0)
+  const [targetWeight, setTargetWeight] = useState(0)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    
+    const response = await axios.post("http://localhost:4000/api/signup", {
+      name,
+      email,
+      password,
+      currentWeight,
+      targetWeight
+    })
+    console.log(response.data)
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Form submitted:", formData)
+    if (response.data.status === 200) {
+      localStorage.setItem("token", response.data.token)
       setLoading(false)
-      router.push("/dashboard") // Redirect to dashboard after signup
-    }, 1500)
+      router.push(`/dashboard?id=${response.data.user._id}&caloriegoal=${response.data.user.calorieGoal}`)
+    } else {
+      setLoading(false)
+      alert(response.data.message)
+    }
   }
 
   return (
@@ -60,8 +62,8 @@ export default function SignupPage() {
               name="name"
               type="text"
               required
-              value={formData.name}
-              onChange={handleChange}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="John Doe"
             />
@@ -76,8 +78,8 @@ export default function SignupPage() {
               name="email"
               type="email"
               required
-              value={formData.email}
-              onChange={handleChange}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="john@example.com"
             />
@@ -92,8 +94,8 @@ export default function SignupPage() {
               name="password"
               type="password"
               required
-              value={formData.password}
-              onChange={handleChange}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="••••••••"
             />
@@ -110,8 +112,8 @@ export default function SignupPage() {
                 type="number"
                 min={0}
                 required
-                value={formData.currentWeight}
-                onChange={handleChange}
+                value={currentWeight}
+                onChange={(e) => setCurrentWeight(Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="70"
               />
@@ -127,8 +129,8 @@ export default function SignupPage() {
                 type="number"
                 required
                 min={0}
-                value={formData.targetWeight}
-                onChange={handleChange}
+                value={targetWeight}
+                onChange={(e) => setTargetWeight(Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="65"
               />
