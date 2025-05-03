@@ -7,6 +7,7 @@ import login from "./routes/login.js";
 import add from "./routes/add.js";
 import todayCal from "./routes/todayCal.js";
 import history from "./routes/history.js";
+import profile from "./routes/profile.js";
 
 import authMiddleware from "./middleware/authMiddleware.js";
 
@@ -19,6 +20,7 @@ app.use("/api/login", login);
 app.use("/api/add", authMiddleware, add);
 app.use("/api/todaycal", authMiddleware, todayCal);
 app.use("/api/history", authMiddleware, history);
+app.use("/api/profile", authMiddleware, profile);
 
 app.get("/", async (req, res) => {
     await db();

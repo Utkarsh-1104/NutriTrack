@@ -31,7 +31,7 @@ export default function SignupPage() {
     if (response.data.status === 200) {
       localStorage.setItem("token", response.data.token)
       setLoading(false)
-      router.push(`/dashboard?id=${response.data.user._id}&caloriegoal=${response.data.user.calorieGoal}`)
+      router.push(`/dashboard`)
     } else {
       setLoading(false)
       alert(response.data.message)

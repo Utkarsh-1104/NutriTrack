@@ -1,11 +1,13 @@
 import express from 'express';
 import User from '../models/User.js';
+import { db } from '../db/db.js';
 
 const router = express.Router();
 
 router.post('/', async (req, res) => {
     const { foodName, calories } = req.body;
     const userId = req.user.id;
+    await db(); 
   
     const todayDate = new Date().toISOString().split('T')[0]; // "2025-04-28"
   

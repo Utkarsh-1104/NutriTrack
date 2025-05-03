@@ -1,11 +1,13 @@
 import express from 'express';
 import User from '../models/User.js';
+import { db } from '../db/db.js';
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
     const userId = req.user.id;
 
+    await db(); 
     const todayDate = new Date().toISOString().split('T')[0]; // "2025-04-28"
 
     try {
@@ -29,7 +31,8 @@ router.get('/', async (req, res) => {
 
         res.json({
             status: 200,
-            todayLog
+            todayLog,
+            calorieGoal: user.calorieGoal,
         })
 
     } catch (error) {

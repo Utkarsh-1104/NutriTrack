@@ -18,10 +18,7 @@ export default function DashboardPage() {
   const [foodItems, setFoodItems] = useState([])
   const [newFood, setNewFood] = useState("")
   const [totalCalories, setTotalCalories] = useState(0)
-  
-  const searchParams = useSearchParams()
-  const userId = searchParams.get("id")
-  const dailyCalorieTarget = Number(searchParams.get("caloriegoal"))
+  const [dailyCalorieTarget, setDailyCalorieTarget] = useState()
 
 
   //fetch food log from server
@@ -35,6 +32,7 @@ export default function DashboardPage() {
         })
         setFoodItems(res.data.todayLog.foods)
         setTotalCalories(res.data.todayLog.totalCalories)
+        setDailyCalorieTarget(res.data.calorieGoal)
         console.log(res.data.todayLog.foods)
       } catch (error) {
         console.error("Error fetching food log:", error)

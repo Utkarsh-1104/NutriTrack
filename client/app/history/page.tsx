@@ -2,99 +2,56 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-
-// Mock history data - in a real app, this would come from an API/database
-const mockHistoryData = [
-  {
-    date: "2023-04-27",
-    totalCalories: 1850,
-    targetCalories: 2000,
-    foods: [
-      { id: 1, name: "Oatmeal with Banana", calories: 350, time: "08:30 AM" },
-      { id: 2, name: "Grilled Chicken Salad", calories: 420, time: "12:45 PM" },
-      { id: 3, name: "Protein Shake", calories: 180, time: "03:15 PM" },
-      { id: 4, name: "Salmon with Vegetables", calories: 550, time: "07:00 PM" },
-      { id: 5, name: "Greek Yogurt", calories: 150, time: "09:30 PM" },
-    ],
-  },
-  {
-    date: "2023-04-26",
-    totalCalories: 2000,
-    targetCalories: 2000,
-    foods: [
-      { id: 1, name: "Avocado Toast", calories: 320, time: "08:00 AM" },
-      { id: 2, name: "Turkey Sandwich", calories: 450, time: "12:30 PM" },
-      { id: 3, name: "Protein Bar", calories: 220, time: "03:30 PM" },
-      { id: 4, name: "Pasta with Meatballs", calories: 780, time: "07:15 PM" },
-      { id: 5, name: "Dark Chocolate", calories: 180, time: "09:45 PM" },
-    ],
-  },
-  {
-    date: "2023-04-25",
-    totalCalories: 1920,
-    targetCalories: 2000,
-    foods: [
-      { id: 1, name: "Smoothie Bowl", calories: 380, time: "08:15 AM" },
-      { id: 2, name: "Quinoa Salad", calories: 410, time: "12:30 PM" },
-      { id: 3, name: "Apple with Almond Butter", calories: 210, time: "03:45 PM" },
-      { id: 4, name: "Grilled Tofu with Vegetables", calories: 520, time: "06:45 PM" },
-      { id: 5, name: "Herbal Tea with Honey", calories: 40, time: "09:15 PM" },
-    ],
-  },
-  {
-    date: "2023-04-24",
-    totalCalories: 2250,
-    targetCalories: 2000,
-    foods: [
-      { id: 1, name: "Breakfast Burrito", calories: 520, time: "08:30 AM" },
-      { id: 2, name: "Chicken Wrap", calories: 480, time: "12:45 PM" },
-      { id: 3, name: "Trail Mix", calories: 250, time: "04:00 PM" },
-      { id: 4, name: "Beef Stir Fry", calories: 650, time: "07:30 PM" },
-      { id: 5, name: "Ice Cream", calories: 350, time: "10:00 PM" },
-    ],
-  },
-  {
-    date: "2023-04-23",
-    totalCalories: 1780,
-    targetCalories: 2000,
-    foods: [
-      { id: 1, name: "Egg White Omelette", calories: 280, time: "07:45 AM" },
-      { id: 2, name: "Lentil Soup with Bread", calories: 420, time: "12:15 PM" },
-      { id: 3, name: "Banana", calories: 105, time: "03:30 PM" },
-      { id: 4, name: "Grilled Fish with Rice", calories: 580, time: "06:30 PM" },
-      { id: 5, name: "Chamomile Tea", calories: 0, time: "09:00 PM" },
-    ],
-  },
-]
+import axios from "axios"
 
 export default function HistoryPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [historyData, setHistoryData] = useState([])
+  const [historyData, setHistoryData] = useState()
   const [selectedDay, setSelectedDay] = useState(null)
+  const [targetCalories, setTargetCalories] = useState()
 
   useEffect(() => {
-    // Simulate loading data from API
-    const timer = setTimeout(() => {
-      setHistoryData(mockHistoryData)
-      setSelectedDay(mockHistoryData[0])
-      setLoading(false)
-    }, 500)
+    const token = localStorage.getItem("token")
+    if (!token) {
+      router.push("/login")
+    }
 
-    return () => clearTimeout(timer)
+    async function fetchHistory() {
+      try {
+        const response = await axios.get("http://localhost:4000/api/history", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        const data = response.data
+        setHistoryData(data.data.calorieLogs)
+        setTargetCalories(data.data.calorieGoal)
+        setLoading(false)
+      } catch (error) {
+        console.error("Error fetching history data:", error)
+        setLoading(false)
+      }
+    }
+    fetchHistory()
   }, [])
+
+  useEffect(() => {
+    if (historyData && historyData.length > 0) {
+      setSelectedDay(historyData[0])
+    }
+  }
+  , [historyData])
 
   const handleDaySelect = (day: any) => {
     setSelectedDay(day)
   }
 
-  // Format date for display
   const formatDate = (dateString: any) => {
     const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" }
     return new Date(dateString).toLocaleDateString("en-US", options)
   }
 
-  // Calculate progress percentage
   const calculateProgress = (consumed: any, target: any) => {
     return Math.min(Math.round((consumed / target) * 100), 100)
   }
@@ -129,7 +86,7 @@ export default function HistoryPage() {
 
             {/* Date Selector */}
             <div className="flex overflow-x-auto pb-4 mb-6 gap-2">
-              {historyData.map((day) => (
+              {historyData?.map((day: any) => (
                 <button
                   key={day.date}
                   onClick={() => handleDaySelect(day)}
@@ -153,24 +110,24 @@ export default function HistoryPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="bg-green-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Daily Target</p>
-                      <p className="text-2xl font-bold text-green-600">{selectedDay.targetCalories} cal</p>
+                      <p className="text-2xl font-bold text-green-600">{targetCalories} cal</p>
                     </div>
 
                     <div className="bg-green-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Consumed</p>
-                      <p className="text-2xl font-bold text-green-600">{selectedDay.totalCalories} cal</p>
+                      <p className="text-2xl font-bold text-green-600">{selectedDay.totalCalories.toFixed(2)} cal</p>
                     </div>
 
                     <div className="bg-green-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Difference</p>
                       <p
                         className={`text-2xl font-bold ${
-                          selectedDay.totalCalories > selectedDay.targetCalories ? "text-red-500" : "text-green-600"
+                          selectedDay.totalCalories > targetCalories ? "text-red-500" : "text-green-600"
                         }`}
                       >
-                        {selectedDay.totalCalories > selectedDay.targetCalories
-                          ? "+" + (selectedDay.totalCalories - selectedDay.targetCalories)
-                          : selectedDay.targetCalories - selectedDay.totalCalories}{" "}
+                        {selectedDay.totalCalories > targetCalories
+                          ? "+" + (selectedDay.totalCalories - targetCalories).toFixed(2)
+                          : targetCalories - selectedDay.totalCalories.toFixed(2)}{" "}
                         cal
                       </p>
                     </div>
@@ -180,15 +137,15 @@ export default function HistoryPage() {
                   <div className="mt-6">
                     <div className="flex justify-between text-sm mb-1">
                       <span>Daily Progress</span>
-                      <span>{calculateProgress(selectedDay.totalCalories, selectedDay.targetCalories)}%</span>
+                      <span>{calculateProgress(selectedDay.totalCalories, targetCalories)}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          selectedDay.totalCalories > selectedDay.targetCalories ? "bg-red-500" : "bg-green-500"
+                          selectedDay.totalCalories > targetCalories ? "bg-red-500" : "bg-green-500"
                         }`}
                         style={{
-                          width: `${calculateProgress(selectedDay.totalCalories, selectedDay.targetCalories)}%`,
+                          width: `${calculateProgress(selectedDay.totalCalories, targetCalories)}%`,
                         }}
                       ></div>
                     </div>
@@ -202,11 +159,10 @@ export default function HistoryPage() {
                   {/* Mobile view - Card layout */}
                   <div className="md:hidden space-y-4">
                     {selectedDay.foods.map((item) => (
-                      <div key={item.id} className="bg-gray-50 p-4 rounded-lg">
+                      <div key={item._id} className="bg-gray-50 p-4 rounded-lg">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-medium text-gray-900">{item.name}</h3>
-                            <p className="text-sm text-gray-500">{item.time}</p>
+                            <h3 className="font-medium text-gray-900">{item.foodName}</h3>
                           </div>
                           <div className="flex flex-col items-end">
                             <span className="font-bold text-gray-900">{item.calories} cal</span>
@@ -217,7 +173,7 @@ export default function HistoryPage() {
                     <div className="bg-green-100 p-4 rounded-lg mt-4">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-gray-900">Total</span>
-                        <span className="font-bold text-gray-900">{selectedDay.totalCalories} cal</span>
+                        <span className="font-bold text-gray-900">{(selectedDay.totalCalories).toFixed(2)} cal</span>
                       </div>
                     </div>
                   </div>
@@ -229,13 +185,7 @@ export default function HistoryPage() {
                         <tr>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Time
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-3 w-[50%] text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Food
                           </th>
@@ -249,10 +199,9 @@ export default function HistoryPage() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {selectedDay.foods.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.time}</td>
+                          <tr key={item._id}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {item.name}
+                              {item.foodName}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.calories} cal</td>
                           </tr>
@@ -260,11 +209,11 @@ export default function HistoryPage() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-gray-50">
-                          <td colSpan={2} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td colSpan={1} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             Total
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                            {selectedDay.totalCalories} cal
+                            {(selectedDay.totalCalories).toFixed(2)} cal
                           </td>
                         </tr>
                       </tfoot>
@@ -302,7 +251,7 @@ export default function HistoryPage() {
                                 style={{ height: `${heightPercentage}%` }}
                               >
                                 <div className="text-xs text-white text-center font-bold mt-1 truncate">
-                                  {day.totalCalories}
+                                  {(day.totalCalories).toFixed(2)} cal
                                 </div>
                               </div>
                             </div>

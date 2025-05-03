@@ -2,31 +2,42 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-
-// Mock user data - in a real app, this would come from an API/database
-const mockUserData = {
-  name: "John Doe",
-  email: "john.doe@example.com",
-  dailyCalorieTarget: 2000,
-  currentWeight: 69, // kg
-  targetWeight: 63, // kg
-  joinedDate: "2023-01-15",
-}
+import axios from "axios"
 
 export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [userData, setUserData] = useState()
 
   useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 500)
+    async function fetchUserData() {
+      setLoading(true)
+      const token = localStorage.getItem("token")
+      if (!token) {
+        router.push("/")
+        return
+      }
 
-    return () => clearTimeout(timer)
+      const response = await axios.get("http://localhost:4000/api/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      })
+
+      if (response.status === 200) {
+        setUserData(response.data.data)
+        setLoading(false)
+      } else {
+        console.error("Failed to fetch user data")
+        setLoading(false)
+      }
+    }
+
+    fetchUserData()
   }, [])
 
-  // Get user initials for avatar
+  console.log(userData)
+
   const getInitials = (name: any) => {
     return name
       .split(" ")
@@ -36,12 +47,11 @@ export default function ProfilePage() {
   }
 
   const handleLogout = () => {
-    // Simulate logout process
     setLoading(true)
     localStorage.removeItem("token")
     setLoading(false)
     router.push("/")
-    //window.location.reload()
+    // window.location.reload
   }
 
   return (
@@ -74,14 +84,11 @@ export default function ProfilePage() {
               <div className="flex flex-col items-center mb-8">
                 {/* User Avatar with Initials */}
                 <div className="w-24 h-24 rounded-full bg-green-500 flex items-center justify-center text-white text-3xl font-bold mb-4">
-                  {getInitials(mockUserData.name)}
+                  {getInitials(userData.name)}
                 </div>
 
-                <h2 className="text-2xl font-bold text-gray-800">{mockUserData.name}</h2>
-                <p className="text-gray-500">{mockUserData.email}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Member since {new Date(mockUserData.joinedDate).toLocaleDateString()}
-                </p>
+                <h2 className="text-2xl font-bold text-gray-800">{userData.name}</h2>
+                <p className="text-gray-500">{userData.email}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -90,16 +97,16 @@ export default function ProfilePage() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-500">Current Weight</p>
-                      <p className="text-xl font-bold text-gray-900">{mockUserData.currentWeight} kg</p>
+                      <p className="text-xl font-bold text-gray-900">{userData.currentWeight} kg</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Target Weight</p>
-                      <p className="text-xl font-bold text-gray-900">{mockUserData.targetWeight} kg</p>
+                      <p className="text-xl font-bold text-gray-900">{userData.targetWeight} kg</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Weight to {(mockUserData.currentWeight > mockUserData.targetWeight) ? "Lose" : "Gain"}</p>
+                      <p className="text-sm text-gray-500">Weight to {(userData.currentWeight > userData.targetWeight) ? "Lose" : "Gain"}</p>
                       <p className="text-xl font-bold text-green-600">
-                        {(mockUserData.currentWeight - mockUserData.targetWeight) > 0 ? (mockUserData.currentWeight - mockUserData.targetWeight) : (mockUserData.currentWeight - mockUserData.targetWeight) * -1 } kg
+                        {(userData.currentWeight - userData.targetWeight) > 0 ? (userData.currentWeight - userData.targetWeight) : (userData.currentWeight - userData.targetWeight) * -1 } kg
                       </p>
                     </div>
                   </div>
@@ -110,18 +117,18 @@ export default function ProfilePage() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-500">Daily Calorie Target</p>
-                      <p className="text-xl font-bold text-gray-900">{mockUserData.dailyCalorieTarget} calories</p>
+                      <p className="text-xl font-bold text-gray-900">{userData.calorieGoal} calories</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Recommended Protein</p>
                       <p className="text-xl font-bold text-gray-900">
-                        {Math.round(mockUserData.currentWeight * 1.2)} g
+                        {Math.round(userData.currentWeight * 1.2)} g
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Recommended Water</p>
                       <p className="text-xl font-bold text-gray-900">
-                        {(mockUserData.currentWeight * 0.035).toFixed(2)} L
+                        {(userData.currentWeight * 0.035).toFixed(2)} L
                       </p>
                     </div>
                   </div>
