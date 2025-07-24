@@ -6,11 +6,6 @@ import { useSearchParams } from "next/navigation"
 import axios from "axios"
 
 
-// Mock initial food items - in a real app, this would come from an API/database
-const initialFoodItems = [
-  { id: 1, name: "Oatmeal with Banana", calories: 350 },
-  { id: 2, name: "Grilled Chicken Salad", calories: 420 },
-]
 
 export default function DashboardPage() {
   const router = useRouter()
